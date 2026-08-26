@@ -5,6 +5,16 @@
 -- ※ GUIはmacOS純正ダイアログを使う（システムPythonのtkinterは描画されないため使わない）
 
 on scriptsDir()
+	-- アプリの隣（リポジトリ内 mac/ 配置 → ../scripts、ルート配置 → ./scripts）を優先し、
+	-- 見つからなければ従来の ~/.claude/skills/nouhin-check/scripts/ を使う
+	set appPosix to POSIX path of (path to me)
+	repeat with rel in {"../scripts/", "../../scripts/", "scripts/"}
+		set cand to appPosix & rel
+		try
+			do shell script "test -f " & quoted form of (cand & "precheck.py")
+			return cand
+		end try
+	end repeat
 	return (POSIX path of (path to home folder)) & ".claude/skills/nouhin-check/scripts/"
 end scriptsDir
 
