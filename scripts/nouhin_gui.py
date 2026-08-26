@@ -330,6 +330,18 @@ def main():
         else:
             files.append(a)
 
+    # .prproj は書き出し前チェック（precheck.py）へ振り分け
+    prprojs = [f for f in files if f.lower().endswith(".prproj")]
+    if prprojs:
+        import precheck
+        prj = precheck.Project(prprojs[0])
+        seqs = prj.sequences()
+        if no_gui:
+            for i, info in enumerate(seqs):
+                print(precheck.seq_label(i, info))
+            return 0
+        return precheck.run_gui(prprojs[0], prj, seqs)
+
     if no_gui:
         if not shutil.which("ffprobe") or not shutil.which("ffmpeg"):
             print(ffmpeg_missing_message())

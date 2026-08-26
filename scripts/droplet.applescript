@@ -1,13 +1,71 @@
 -- 納品チェック ドロップレット（Mac用）
 -- ビルド: bash make_mac_droplet.sh（デスクトップに 納品チェック.app を作る）
--- 動画ファイルをアイコンにドロップ → 納品先を選ぶ → nouhin_gui.py --no-gui が測定してHTMLレポートを開く
+-- 動画ファイルをドロップ → 納品先を選んで実測チェック（書き出し後）
+-- .prproj をドロップ → シーケンスを選んでタイムライン構造チェック（書き出し前）
 -- ※ GUIはmacOS純正ダイアログを使う（システムPythonのtkinterは描画されないため使わない）
 
-on scriptPath()
-	return (POSIX path of (path to home folder)) & ".claude/skills/nouhin-check/scripts/nouhin_gui.py"
-end scriptPath
+on scriptsDir()
+	return (POSIX path of (path to home folder)) & ".claude/skills/nouhin-check/scripts/"
+end scriptsDir
+
+on pyRun(scriptName, args)
+	return do shell script "PATH=/opt/homebrew/bin:/usr/local/bin:$PATH /usr/bin/python3 " & quoted form of (scriptsDir() & scriptName) & " " & args
+end pyRun
 
 on open theFiles
+	set prprojPath to missing value
+	set mediaArgs to ""
+	set mediaCount to 0
+	repeat with f in theFiles
+		set p to POSIX path of f
+		if p ends with ".prproj" then
+			if prprojPath is missing value then set prprojPath to p
+		else
+			set mediaArgs to mediaArgs & " " & quoted form of p
+			set mediaCount to mediaCount + 1
+		end if
+	end repeat
+
+	if prprojPath is not missing value then
+		if mediaCount > 0 then
+			display notification "prproj優先で処理します（動画は別途ドロップしてください）" with title "納品チェック"
+		end if
+		my handlePrproj(prprojPath)
+	else
+		my handleMedia(mediaArgs)
+	end if
+end open
+
+-- ============================ 書き出し前チェック（.prproj）
+
+on handlePrproj(p)
+	try
+		set listing to my pyRun("precheck.py", quoted form of p & " --list")
+	on error errMsg
+		display dialog "プロジェクトを読み込めませんでした:" & return & errMsg buttons {"OK"} default button 1 with icon stop with title "書き出し前チェック"
+		return
+	end try
+	set choices to paragraphs of listing
+	set sel to choose from list choices with prompt "チェックするシーケンスを選んでください" default items {item 1 of choices} with title "書き出し前チェック"
+	if sel is false then return
+	set selText to item 1 of sel
+	set idx to word 1 of selText
+	display notification "解析中…" with title "書き出し前チェック"
+	try
+		my pyRun("precheck.py", quoted form of p & " --sequence " & idx & " 2>&1")
+	on error errMsg
+		display dialog "解析に失敗しました:" & return & errMsg buttons {"OK"} default button 1 with icon stop with title "書き出し前チェック"
+	end try
+end handlePrproj
+
+-- ============================ 納品チェック（書き出し後の実測）
+
+on handleMedia(args)
+	if args is "" then
+		display dialog "書き出した動画ファイル、またはPremiereの .prproj をこのアイコンにドロップしてください。" buttons {"OK"} default button 1 with title "納品チェック"
+		return
+	end if
+
 	-- 納品先を選ぶ
 	set choices to {"YouTube / SNS（-14 LUFS）", "TV放送・CM納品（-24 LKFS / ARIB）", "Web広告 汎用（-16 LUFS）"}
 	set sel to choose from list choices with prompt "納品先を選んでください" default items {item 1 of choices} with title "納品チェック"
@@ -30,19 +88,14 @@ on open theFiles
 		set durArg to " --duration " & quoted form of d
 	end if
 
-	set args to ""
-	repeat with f in theFiles
-		set args to args & " " & quoted form of POSIX path of f
-	end repeat
-
 	display notification "測定中…（ファイル数・尺によって時間がかかります）" with title "納品チェック"
 	try
-		do shell script "PATH=/opt/homebrew/bin:/usr/local/bin:$PATH /usr/bin/python3 " & quoted form of scriptPath() & args & " --no-gui --target " & targetKey & durArg & " 2>&1"
+		my pyRun("nouhin_gui.py", args & " --no-gui --target " & targetKey & durArg & " 2>&1")
 	on error errMsg
 		display dialog "チェックに失敗しました:" & return & errMsg buttons {"OK"} default button 1 with icon stop with title "納品チェック"
 	end try
-end open
+end handleMedia
 
 on run
-	display dialog "書き出した動画ファイルを、このアイコンにドロップしてください。" buttons {"OK"} default button 1 with title "納品チェック"
+	my handleMedia("")
 end run

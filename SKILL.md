@@ -13,7 +13,24 @@ disable-model-invocation: true
 
 ## 使い方
 
-### D&D（ドラッグ&ドロップ）— Premiere / DaVinci の書き出し後にすぐ使う
+### D&D: 書き出し前チェック（.prproj をドロップ）
+
+Premiereのプロジェクトファイルをそのままドロップすると、**タイムライン構造の事故検出**になる。
+シーケンスを選ぶ→解析→シーケンスタイムコード付きのリストで表示（HTML+テキスト自動保存）。
+
+検出項目: 黒パカ疑い（全Vトラックの1〜2F隙間。調整レイヤーは覆いに数えない）／
+カット点ズレ（トラック間で±1〜2Fずれた編集点＝テロップのこぼれ・抜け）／
+トラック内の隠れた隙間／無効化クリップの取り残し／長い空白（情報）。
+
+```bash
+python3 ~/.claude/skills/nouhin-check/scripts/precheck.py <prproj> --list          # シーケンス一覧
+python3 ~/.claude/skills/nouhin-check/scripts/precheck.py <prproj> --sequence 4    # 解析
+```
+
+※ .prprojはAdobeの非公開仕様。Premiereのメジャーアップデート後に動かなくなったら構造変更を疑う。
+※ DaVinci案件は書き出し後チェックのみ対応。
+
+### D&D: 書き出し後チェック — Premiere / DaVinci の書き出し後にすぐ使う
 
 - **Mac**: デスクトップの **納品チェック.app** に書き出したファイルをドロップ
   （再作成は `bash ~/.claude/skills/nouhin-check/scripts/make_mac_droplet.sh`）
@@ -99,3 +116,13 @@ python3 ~/.claude/skills/nouhin-check/scripts/check.py ~/Desktop/案件/40_書�
 - ラウドネス基準の出どころ → `~/.claude/skills/Video_Skills/audio-and-music.md`
 - CMコード・素材名の命名 → Obsidian `30_型ライブラリ/ノウハウ/CM素材ファイル命名規則.md`
 - 媒体ごとの入稿規定 → Obsidian `入稿規定チェックリスト.md`
+
+---
+
+## やらないこと
+
+- 基準外の値を勝手に直さない（測って指摘するだけ。再書き出しはユーザーが判断）
+- 映像の内容（誤字・演出・尺の妥当性）は見ない → テロップは `jp-telop-proofer`、
+  構成は `shot-variety-checker`
+- 納品先ごとの独自基準は `check.py` に無い限り判定しない（基準の単一ソースは `check.py`）
+- 元ファイルを上書き・変換・移動しない（読み取りと計測のみ）
